@@ -7,6 +7,7 @@ extern "C" {
   #include "fw/src/mgos_sys_config.h"
   #include "fw/src/mgos_timers.h"
   #include "fw/src/mgos_i2c.h"
+  #include "fw/src/mgos_hal.h"
 }
 
 #include "lib/bme280.h"
@@ -28,8 +29,11 @@ static void blink_timer_cb(void *arg) {
   (void) arg;
 }
 
-static void bme280_test_cb(void *arg){
-  LOG (LL_INFO, ("Temp: %2.4f", bme.readTemperature()));
+static void bme280_cb(void *arg){
+  LOG (LL_INFO, ("Temp: %2.2fC, Humidity: %2.2f%%, Pressure: %2.4fmb",
+                 bme.readTemperature(),
+                 bme.readHumidity(),
+                 (float)(bme.readPressure()/100)));
   (void) arg;
 }
 
@@ -38,19 +42,17 @@ enum mgos_app_init_result mgos_app_init(void) {
   //Generic_BME280 bme;
   bool status;
   status = bme.begin();
-
   if (!status) {
     LOG (LL_INFO, ("Could not find BME280 on I2C, check wiring or I2C config"));
   }
 
-  /* callbacks equiv of Running section */
+  /* ************* event loop section (setup callbacks and execute) */
   { /* Set up the blinky timer. */
     mgos_gpio_set_mode(LED_GPIO, MGOS_GPIO_MODE_OUTPUT);
     mgos_set_timer(1000 /* ms */, true /* repeat */, blink_timer_cb, NULL);
   }
-
-  { /* Read I2C Bus */
-    mgos_set_timer(1000, true /* repeat */, bme280_test_cb, NULL);
+  { /* Read and report on BME280 sensor */
+    mgos_set_timer(5000, true /* repeat */, bme280_cb, NULL);
   }
 
   return MGOS_APP_INIT_SUCCESS;
